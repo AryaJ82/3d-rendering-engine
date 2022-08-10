@@ -3,6 +3,8 @@ import pygame
 
 from math import sin, cos
 
+from typing import List
+
 
 class Vector:
     # coordinates of a 3d vector
@@ -43,14 +45,14 @@ class Vector:
     def normalize(self) -> None:
         """ Normalize *this* vector
         """
-        s = sum(i**2 for i in self.cds)
+        s = sum(i ** 2 for i in self.cds)
         if s != 0:
-            self.cds = list(map(lambda x: x/s, self.cds))
+            self.cds = list(map(lambda x: x / s, self.cds))
 
     def dot(self, other: 'Vector') -> float:
         """ Dot product between two vector objects
         """
-        return sum(self.cds[i]*other.cds[i] for i in range(3))
+        return sum(self.cds[i] * other.cds[i] for i in range(3))
 
     def cross(self, other: 'Vector') -> 'Vector':
         """Cross product of two vectors"""
@@ -85,7 +87,7 @@ class Vector:
 class Triangle:
     # list of vectors corresponding to the vertices of the triangle in 3d space
     # defined clockwise relative to the center of mass (normal pointing out)
-    vertices: list('Vector')
+    vertices: List['Vector']
 
     # triangle normal
     normal: Vector
@@ -93,7 +95,7 @@ class Triangle:
     # colour of triangle in RGB
     clr: tuple
 
-    def __init__(self, vertices: list('Vector'), clr: tuple) -> None:
+    def __init__(self, vertices: List['Vector'], clr: tuple) -> None:
         self.vertices = vertices
         self.normal = Vector.cross(vertices[1] - vertices[0],
                                    vertices[2] - vertices[0])
@@ -133,7 +135,7 @@ class Triangle:
             image.append(v.project(poly_cm, mat_proj))
         return Triangle(image, self.clr)
 
-    def rotate(self, rot: list) -> None:
+    def rotate(self, rot: list) -> 'Triangle':
         """ Return a new triangle rotated the corresponding radians
         """
         rover = list(map(lambda v: v.rotate(*rot), self.vertices))
@@ -181,14 +183,13 @@ class Mesh:
             rot_triangle = triangle.rotate(self.rotation)
             t.append(rot_triangle.project(self.cm, mat_proj))
         return t
-        t = []
+        # t = []
         # for triangle in self.triangles:
         #     rot_triangle = triangle.rotate(self.rotation)
         #     # only project the triangle if the normal points away from the scrn
         #     if Vector.dot(rot_triangle.normal, (rot_triangle.vertices[0] - Vector(0, 0, 1))) > 0:
         #         t.append(rot_triangle.project(self.cm, mat_proj))
-        return t
-
+        # return t
 
     def rotate(self, rot: list) -> None:
         """
@@ -220,7 +221,7 @@ def pm_mult(matrix: list, v: Vector) -> Vector:
             ls[i] += 1  # changes range from -1 to 1 to 0 to 2
             ls[i] /= 2  # changes scale to 0 to 1
         # TODO: remove hardcoded scaling
-        ls[0] *= 600
+        ls[0] *= 800
         ls[1] *= 800
         return Vector(*ls[:3])
     else:
@@ -231,31 +232,31 @@ def gen_cube(pos: Vector, s: float) -> Mesh:
     """ Generate regular cube with one edge at <pos> and side length <s>
     """
     # top and bottom of cube
-    tb = [Triangle([Vector(0, s, 0), Vector(0, s, s), Vector(s, s, 0)],
+    tb = [Triangle([Vector(0, s, 0), Vector(0, s, s), Vector(s, s, s)],
                    (125, 125, 125)),
-          Triangle([Vector(s, s, 0), Vector(0, s, s), Vector(s, s, s)],
+          Triangle([Vector(0, s, 0), Vector(s, s, s), Vector(s, s, 0)],
                    (125, 125, 125)),
-          Triangle([Vector(s, 0, 0), Vector(0, 0, 0), Vector(0, 0, s)],
+          Triangle([Vector(s, 0, s), Vector(0, 0, s), Vector(0, 0, 0)],
                    (255, 40, 125)),
-          Triangle([Vector(s, 0, 0), Vector(0, 0, s), Vector(s, 0, s)],
+          Triangle([Vector(s, 0, s), Vector(0, 0, 0), Vector(s, 0, 0)],
                    (255, 40, 125))]
     # north and south of cube
-    ns = [Triangle([Vector(0, s, 0), Vector(s, s, 0), Vector(s, 0, 0)],
+    ns = [Triangle([Vector(0, 0, 0), Vector(0, s, 0), Vector(s, s, 0)],
                    (0, 255, 0)),
-          Triangle([Vector(s, 0, 0), Vector(0, 0, 0), Vector(0, s, 0)],
+          Triangle([Vector(0, 0, 0), Vector(s, s, 0), Vector(s, 0, 0)],
                    (0, 255, 0)),
           Triangle([Vector(s, 0, s), Vector(s, s, s), Vector(0, s, s)],
                    (0, 0, 255)),
-          Triangle([Vector(0, s, s), Vector(0, 0, s), Vector(s, 0, s)],
+          Triangle([Vector(s, 0, s), Vector(0, s, s), Vector(0, 0, s)],
                    (0, 0, 255))]
     # east and west of cube
-    ew = [Triangle([Vector(s, s, s), Vector(s, 0, s), Vector(s, 0, 0)],
+    ew = [Triangle([Vector(s, 0, 0), Vector(s, s, 0), Vector(s, s, s)],
                    (255, 255, 255)),
-          Triangle([Vector(s, 0, 0), Vector(s, s, 0), Vector(s, s, s)],
+          Triangle([Vector(s, 0, 0), Vector(s, s, s), Vector(s, 0, s)],
                    (255, 255, 255)),
-          Triangle([Vector(0, 0, 0), Vector(0, 0, s), Vector(0, s, s)],
+          Triangle([Vector(0, 0, s), Vector(0, s, s), Vector(0, s, 0)],
                    (255, 0, 0)),
-          Triangle([Vector(0, s, s), Vector(0, s, 0), Vector(0, 0, 0)],
+          Triangle([Vector(0, 0, s), Vector(0, s, 0), Vector(0, 0, 0)],
                    (255, 0, 0))]
     return Mesh(pos, tb + ns + ew)
 
