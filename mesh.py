@@ -13,7 +13,8 @@ class Vector:
     def __init__(self, x: float, y: float, z: float) -> None:
         self.cds = [x, y, z]
 
-    def project(self, mesh_ro: 'Vector', mat_proj: list) -> 'Vector':
+    def project(self, mesh_ro: 'Vector',
+                mat_proj: List[List[float]]) -> 'Vector':
         """ Projects vector onto screen
 
         <maT_proj> is the projection matrix
@@ -64,7 +65,7 @@ class Vector:
     def sc_mult(self, p: float) -> 'Vector':
         """ Scalar multiplication of vector by <p>
         """
-        return Vector(self.cds[0]*p, self.cds[1]*p, self.cds[2]*p)
+        return Vector(self.cds[0] * p, self.cds[1] * p, self.cds[2] * p)
 
     def __add__(self, other: 'Vector') -> 'Vector':
         """ Returns a new Vector object; self + other
@@ -85,7 +86,9 @@ class Vector:
         return Vector(*v)
 
     def __repr__(self) -> str:
-        return f"""Vector({round(self.cds[0], 2)}, {round(self.cds[1], 2)}, {round(self.cds[2], 2)})"""
+        return (f"Vector({round(self.cds[0], 2)}, "
+                f"{round(self.cds[1], 2)}, "
+                f"{round(self.cds[2], 2)})")
 
 
 class Triangle:
@@ -131,7 +134,8 @@ class Triangle:
             # print(line)
             pygame.draw.line(screen, (255, 255, 255), *line)
 
-    def project(self, mesh_ro: Vector, mat_proj: list) -> 'Triangle':
+    def project(self, mesh_ro: Vector,
+                mat_proj: List[List[float]]) -> 'Triangle':
         """ Returns a new Triangle; this one projected onto the screen
         using the projection matrix
         """
@@ -140,7 +144,7 @@ class Triangle:
             image.append(v.project(mesh_ro, mat_proj))
         return Triangle(image, self.clr)
 
-    def view_transform(self, mat_view: list) -> 'Triangle':
+    def view_transform(self, mat_view: List[List[float]]) -> 'Triangle':
         """ Returns a new triangle as it would be if the current's vertices
         were transformed into view space using mat_view
         """
@@ -149,7 +153,7 @@ class Triangle:
             vertices.append(pa_mult(mat_view, v))
         return Triangle(vertices, self.clr)
 
-    def rotate(self, rot: list) -> 'Triangle':
+    def rotate(self, rot: List[float]) -> 'Triangle':
         """ Return a new triangle rotated the corresponding radians
         """
         rover = list(map(lambda v: v.rotate(*rot), self.vertices))
@@ -164,48 +168,59 @@ class Mesh:
     # origin
     ro: Vector
 
-    # list of Triangles, which are relatively positioned to the relative origin
+    # list of Triangles, which are relatively positioned to relative origin (ro)
     # of the Mesh
-    triangles: list
+    triangles: List[Triangle]
 
     # cumulative rotation value. 3 numbers, represent rotation about the ro
-    # in radians
-    rotation: list
+    # in radians (between -2pi to 2pi)
+    rotation: List[float]
 
-    def __init__(self, ro, triangles: list) -> None:
+    def __init__(self, ro, triangles: List[Triangle]) -> None:
         self.ro = ro
         self.triangles = triangles
         self.rotation = [0] * 3
 
-    def draw(self, screen, mat_proj, mat_view) -> None:
+    def draw(self, screen, mat_proj: List[List[float]],
+             mat_view: List[List[float]]) -> None:
         """ Draw the mesh on the screen
+
+        <mat_proj> is the associated projection matrix
+        <mat_view> the view transform matrix
         """
         proj_triangles = self._raster(mat_proj, mat_view)
         for t in proj_triangles:
             t.draw(screen)
 
-    def _raster(self, mat_proj: list, mat_view: list) -> List[Triangle]:
+    def _raster(self, mat_proj: List[List[float]],
+                mat_view: List[List[float]]) -> List[Triangle]:
         """ Return a list of Triangle objects; based on all of the triangles in
         the given(self) mesh that has been projected onto the screen so that
         they can be rendered
 
-        <matProj> is the associated projection matrix
+        <mat_proj> is the associated projection matrix
+        <mat_view> the view transform matrix
         """
         t = []
+        # transform relative origin into view space
+        view_ro = pa_mult(mat_view, self.ro)
         for triangle in self.triangles:
 
+            # rotate triangle
             rot_triangle = triangle.rotate(self.rotation)
 
+            # transform triangle
             view_triangle = rot_triangle.view_transform(mat_view)
-            view_ro = pa_mult(mat_view, self.ro)
 
-            if view_triangle.normal.dot(view_triangle.vertices[0] + view_ro) < 0:
+            # filter triangle based on normals and painter's algorithm
+            if view_triangle.normal.dot(
+                    view_triangle.vertices[0] + view_ro) < 0:
                 t.append(view_triangle.project(view_ro, mat_proj))
         return t
 
-    def rotate(self, rot: list) -> None:
+    def rotate(self, rot: List[float]) -> None:
         """
-        Rotate the polygon through its own axis.
+        Rotate the polygon through its own axes.
         Angles are measured in radians.
         """
         for i in range(3):
@@ -213,7 +228,8 @@ class Mesh:
             self.rotation[i] %= 6.28318
 
 
-def pm_mult(matrix: list, v: Vector) -> Vector:
+# TODO: duplicate code for matrix multiplication.
+def pm_mult(matrix: List[List[float]], v: Vector) -> Vector:
     """ Multiplies the 4d projection matrix on a 3d vector
     the '4th' element of <v> is presupposed to be 1.
     The first 3 elements of the resultant 4d vector are divided by the 4th
@@ -238,7 +254,7 @@ def pm_mult(matrix: list, v: Vector) -> Vector:
         return Vector(0, 0, 0)
 
 
-def pa_mult(matrix: list, v: Vector) -> Vector:
+def pa_mult(matrix: List[List[float]], v: Vector) -> Vector:
     """ Multiplies the 4d 'point at' matrix on a 3d vector
     the '4th' element of <v> is presupposed to be 1.
     """
@@ -251,7 +267,7 @@ def pa_mult(matrix: list, v: Vector) -> Vector:
     return Vector(*ls[:3])
 
 
-def point_at_matrix(pos: Vector, target: Vector, up: Vector) -> list:
+def point_at_matrix(pos: Vector, target: Vector, up: Vector) -> List[List[float]]:
     # calculate new forward direction
     new_forward = target - pos
     new_forward.normalize()
@@ -263,7 +279,7 @@ def point_at_matrix(pos: Vector, target: Vector, up: Vector) -> list:
     new_right = Vector.cross(new_up, new_forward)
 
     # TODO: below does not need to be a full list you can just ad +[0]
-    matrix = [[0]*4 for i in range(4)]
+    matrix = [[0.0] * 4 for _ in range(4)]
     matrix[0][0], matrix[0][1], matrix[0][2] = new_right.cds
 
     matrix[1][0], matrix[1][1], matrix[1][2] = new_up.cds
@@ -277,10 +293,10 @@ def point_at_matrix(pos: Vector, target: Vector, up: Vector) -> list:
     return matrix
 
 
-def quick_invert(m: list) -> list:
-    matrix = [[0]*4 for i in range(4)]
+def quick_invert(m: List[List[float]]) -> List[List[float]]:
+    matrix = [[0.0] * 4 for _ in range(4)]
     # TODO: may be able to skip this entirely, can just make the matrix in the
-    # first function, not sure if i'll actually need the original for anything
+    #  first function, not sure if i'll actually need the original for anything
     matrix[0][0] = m[0][0]
     matrix[0][1] = m[1][0]
     matrix[0][2] = m[2][0]
@@ -292,15 +308,19 @@ def quick_invert(m: list) -> list:
     matrix[2][1] = m[1][2]
     matrix[2][2] = m[2][2]
 
-    matrix[3][0] = -(m[3][0] * matrix[0][0] + m[3][1] * matrix[1][0] + m[3][2] * matrix[2][0])
+    matrix[3][0] = -(m[3][0] * matrix[0][0] + m[3][1] * matrix[1][0] + m[3][2] *
+                     matrix[2][0])
 
-    matrix[3][1] = -(m[3][0] * matrix[0][1] + m[3][1] * matrix[1][1] + m[3][2] * matrix[2][1])
+    matrix[3][1] = -(m[3][0] * matrix[0][1] + m[3][1] * matrix[1][1] + m[3][2] *
+                     matrix[2][1])
 
-    matrix[3][2] = -(m[3][0] * matrix[0][2] + m[3][1] * matrix[1][2] + m[3][2] * matrix[2][2])
+    matrix[3][2] = -(m[3][0] * matrix[0][2] + m[3][1] * matrix[1][2] + m[3][2] *
+                     matrix[2][2])
 
     matrix[3][3] = 1.0
 
     return matrix
+
 
 def gen_cube(pos: Vector, s: float) -> Mesh:
     """ Generate regular cube with one edge at <pos> and side length <s>
@@ -333,20 +353,3 @@ def gen_cube(pos: Vector, s: float) -> Mesh:
           Triangle([Vector(0, 0, s), Vector(0, s, 0), Vector(0, 0, 0)],
                    (255, 0, 0))]
     return Mesh(pos, tb + ns + ew)
-
-
-def gen_tetra(pos: Vector) -> Mesh:
-    """ Generate an irregular tetrahedron with one edge at <pos>
-    """
-    Vector(0, 0, 0), Vector(1, 0, 0), Vector(0, 1, 0), Vector(0, 0, 1)
-    return Mesh(pos, [Triangle()])
-
-
-def get_square(pos: Vector, s: float) -> Mesh:
-    """ Generate a square with center at <pos>, side length of sqrt(2)*s
-    """
-    return Mesh(pos, [
-        Triangle([Vector(s, 0, 0), Vector(0, s, 0), Vector(-s, 0, 0)],
-                 (255, 255, 255)),
-        Triangle([Vector(-s, 0, 0), Vector(0, -s, 0), Vector(s, 0, 0)],
-                 (255, 255, 255))])
