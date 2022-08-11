@@ -198,15 +198,9 @@ class Mesh:
 
             view_triangle = rot_triangle.view_transform(mat_view)
             view_ro = pa_mult(mat_view, self.ro)
-            t.append(view_triangle.project(view_ro, mat_proj))
 
-            # TODO: uncomment and implement alongside camera movement
-            # TODO: self.ro might need to be added before this?
-            # TODO: hypothesis: rendering the transformed triangle is
-            #  probably too large, it lags the display
-
-            # if rot_triangle.normal.dot(rot_triangle.vertices[0] +self.ro) < 0:
-            #     t.append(rot_triangle.project(self.ro, mat_proj))
+            if view_triangle.normal.dot(view_triangle.vertices[0] + view_ro) < 0:
+                t.append(view_triangle.project(view_ro, mat_proj))
         return t
 
     def rotate(self, rot: list) -> None:

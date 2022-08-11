@@ -31,7 +31,7 @@ camera_pos = Vector(0, 0, 0)
 camera_dir = Vector(0, 0, 1)
 # up
 up = Vector(0, 1, 0)
-right = Vector.cross(up, camera_pos)
+right = Vector.cross(up, camera_dir)
 target = camera_pos + camera_dir
 
 mat_camera = point_at_matrix(camera_pos, target, up)
@@ -57,16 +57,16 @@ while running:
         cube.rotate([0.002, 0.003, 0.004])
     elif keys[pygame.K_w]:
         # vertical elevation
-        camera_pos += up.sc_mult(0.1)
+        camera_pos -= up.sc_mult(0.1)
     elif keys[pygame.K_s]:
         # vertical depression
-        camera_pos -= up.sc_mult(0.1)
+        camera_pos += up.sc_mult(0.1)
     elif keys[pygame.K_z]:
         # horizontal yaw
-        camera_dir = camera_dir.rotate(0.0, 0.01, 0.0)
+        camera_dir = camera_dir.rotate(0.0, 0.005, 0.0)
     elif keys[pygame.K_x]:
         # horizontal yaw
-        camera_dir = camera_dir.rotate(0.0, -0.01, 0.0)
+        camera_dir = camera_dir.rotate(0.0, -0.005, 0.0)
     elif keys[pygame.K_UP]:
         # camera position movement
         camera_pos += camera_dir.sc_mult(0.1)
@@ -81,7 +81,7 @@ while running:
         camera_pos -= right.sc_mult(0.1)
 
     # TODO: only redefine right when necessary
-    right = Vector.cross(up, camera_pos)
+    right = Vector.cross(up, camera_dir)
     right.normalize()
 
     target = camera_pos + camera_dir
