@@ -111,7 +111,6 @@ class Triangle:
         """ Sets the normal for this triangle """
         self.normal = Vector.cross(self.vertices[1] - self.vertices[0],
                                    self.vertices[2] - self.vertices[0])
-        self.normal.normalize()
 
     def draw(self, screen) -> None:
         """ Draws this triangle onto the screen
@@ -229,6 +228,7 @@ class Mesh:
             view_triangle.gen_normal()
             if view_triangle.normal.dot(
                     view_triangle.vertices[0] + view_ro) < 0:
+                view_triangle.normal.normalize()
                 t.append(view_triangle.project(view_ro, mat_proj))
         return t
 
@@ -386,3 +386,31 @@ def gen_cube(pos: Vector, s: float) -> Mesh:
           Triangle([Vector(0, 0, s), Vector(0, s, 0), Vector(0, 0, 0)],
                    (255, 0, 0))]
     return Mesh(pos, tb + ns + ew)
+
+
+
+def file_to_mesh(pos: Vector, d: str):
+    """ Generate a mesh from the .obj file at <d> located at <pos>"""
+    vertices = []
+    triangles = []
+    with open(d, 'r') as f:
+        # vertex entries take the form "v float float float"
+        line = f.readline().split(" ")
+        while line[0] == "v":
+            vertices.append(Vector(*list(map(float, line[1:]))))
+            line = f.readline().split(" ")
+
+        # blank line
+        line = f.readline().split(" ")
+
+        # triangle entries take the form "t int int int"
+        # where int correspond to an entry in <vertices>
+        while line[0] == "f":
+            t = Triangle(list(map(lambda n: vertices[int(n)-1], line[1:])), (255, 255, 255))
+            triangles.append(t)
+            line = f.readline().split(" ")
+
+    return Mesh(pos, triangles)
+
+
+

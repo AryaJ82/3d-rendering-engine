@@ -99,7 +99,8 @@ def camera_movement(keys: dict) -> List[List[float]]:
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-cube = gen_cube(Vector(0, 0, 40), 10)
+#cube = gen_cube(Vector(0, 0, 40), 10)
+cube = file_to_mesh(Vector(0, 0, 10), r"C:\Users\littl\Projects\3d_graphics_engine\Assets\teapot.obj")
 
 running = True
 while running:
