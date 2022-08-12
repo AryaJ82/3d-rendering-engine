@@ -32,7 +32,7 @@ up = Vector(0, 1, 0)
 right = Vector.cross(up, camera_dir)
 # up, right and camera_dir form a basis and are used for transformations
 
-mat_camera = point_at_matrix(camera_pos, camera_pos + camera_dir, up)
+mat_camera = point_at_matrix(camera_pos, camera_pos + camera_dir, up, right)
 mat_view = quick_invert(mat_camera)
 
 # Create screen
@@ -56,8 +56,8 @@ def camera_movement(keys: dict) -> List[List[float]]:
     global camera_dir
     global right
 
-    # if keys[pygame.K_SPACE]:
-    #     cube.rotate([0.002, 0.003, 0.004])
+    if keys[pygame.K_SPACE]:
+        cube.rotate([0.002, 0.003, 0.004])
 
     # Separating <if> statements into negative/positive movement directions
     # allows for movement in multiple directions at once
@@ -94,7 +94,7 @@ def camera_movement(keys: dict) -> List[List[float]]:
         camera_pos -= right.sc_mult(0.1)
 
     return quick_invert(
-        point_at_matrix(camera_pos, camera_pos + camera_dir, up))
+        point_at_matrix(camera_pos, camera_pos + camera_dir, up, right))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -44,9 +44,8 @@ class Vector:
         return Vector(x, y, z)
 
     def normalize(self) -> None:
-        """ Normalize *this* vector
-        """
-        s = sum(i ** 2 for i in self.cds)
+        """ Normalize *this* vector"""
+        s = sum(i ** 2 for i in self.cds)**0.5
         if s != 0:
             self.cds = list(map(lambda x: x / s, self.cds))
 
@@ -105,24 +104,35 @@ class Triangle:
     def __init__(self, vertices: List['Vector'], clr: tuple) -> None:
         self.vertices = vertices
         # TODO: only generate normal when necessary
-        self.normal = Vector.cross(vertices[1] - vertices[0],
-                                   vertices[2] - vertices[0])
-        self.normal.normalize()
+
         self.clr = clr
+
+    def gen_normal(self):
+        """ Sets the normal for this triangle """
+        self.normal = Vector.cross(self.vertices[1] - self.vertices[0],
+                                   self.vertices[2] - self.vertices[0])
+        self.normal.normalize()
 
     def draw(self, screen) -> None:
         """ Draws this triangle onto the screen
 
-        Precondition: This triangle has been projected onto the screen
+        Precondition: This triangle has already been projected onto the screen
         """
+        # find vertex positions on screen
         proj_vert = []
         for v in self.vertices:
             proj_vert.append(tuple(v.cds[:2]))
-        pygame.draw.polygon(screen, self.clr, proj_vert)
+
+        # shading
+        light_dir = Vector(0, 0, -1)
+        clr = tup_sc_mult(self.clr, abs(self.normal.dot(light_dir)))
+
+        # draw triangle
+        pygame.draw.polygon(screen, clr, proj_vert)
 
     def draw_prime(self, screen) -> None:
         """ Draws this triangle onto the screen
-        ALTERNATIVE TO Triangle.draw_prime; this one draws a wireframe
+        ALTERNATIVE TO Triangle.draw; this one draws a wireframe
 
         Precondition: This triangle has been projected onto the screen
         """
@@ -131,18 +141,22 @@ class Triangle:
             proj_vert.append(tuple(v.cds[:2]))
 
         for line in itertools.combinations(proj_vert, 2):
-            # print(line)
             pygame.draw.line(screen, (255, 255, 255), *line)
 
     def project(self, mesh_ro: Vector,
                 mat_proj: List[List[float]]) -> 'Triangle':
         """ Returns a new Triangle; this one projected onto the screen
         using the projection matrix
+
+        Precondition: the normal for this triangle has been generated (using
+        Triangle.gen_normal())
         """
         image = []
         for v in self.vertices:
             image.append(v.project(mesh_ro, mat_proj))
-        return Triangle(image, self.clr)
+        t = Triangle(image, self.clr)
+        t.normal = self.normal
+        return t
 
     def view_transform(self, mat_view: List[List[float]]) -> 'Triangle':
         """ Returns a new triangle as it would be if the current's vertices
@@ -205,14 +219,14 @@ class Mesh:
         # transform relative origin into view space
         view_ro = pa_mult(mat_view, self.ro)
         for triangle in self.triangles:
-
             # rotate triangle
             rot_triangle = triangle.rotate(self.rotation)
 
-            # transform triangle
+            # transform triangle into view space
             view_triangle = rot_triangle.view_transform(mat_view)
 
-            # filter triangle based on normals and painter's algorithm
+            # hidden surface elimination based on normals
+            view_triangle.gen_normal()
             if view_triangle.normal.dot(
                     view_triangle.vertices[0] + view_ro) < 0:
                 t.append(view_triangle.project(view_ro, mat_proj))
@@ -226,6 +240,11 @@ class Mesh:
         for i in range(3):
             self.rotation[i] += rot[i]
             self.rotation[i] %= 6.28318
+
+
+def tup_sc_mult(tup: tuple, sc: float) -> tuple:
+    """ Multiplies the tuples entries by <sc>, rounds to int, and returns"""
+    return tuple(map(lambda x: int(x*sc), tup))
 
 
 # TODO: duplicate code for matrix multiplication.
@@ -267,20 +286,34 @@ def pa_mult(matrix: List[List[float]], v: Vector) -> Vector:
     return Vector(*ls[:3])
 
 
-def point_at_matrix(pos: Vector, target: Vector, up: Vector) -> List[List[float]]:
+def point_at_matrix(pos: Vector, target: Vector, up: Vector, right: Vector) -> List[List[float]]:
+    """ The 'point at' matrix is a change of basis matrix from the view to the
+    standard basis. It cannot strictly be called a linear transformation as
+    it also takes into account position (origin is not const at(0,0,0))
+
+    basis formed by the vectors: forward, up, right
+    up is constant and right is generated based on forward and up. Forward is
+    mapped to (0, 0, 1) (z-axis) in the basis change.
+
+    :param pos: position of new origin
+    :param target: vector to be mapped to (0, 0, 1)
+    :param up: vertical direction, should be constant at (0, 1, 0)
+    :param right: orthonormal to up and forward
+    :return: new change of basis matrix
+    """
+    # TODO: unecessary; change target to forward vector directly instead
     # calculate new forward direction
     new_forward = target - pos
     new_forward.normalize()
 
     # calculate new up direction
+    # TODO: not necessary if i only allow yaw, vertical direction will be const
     new_up = up - new_forward.sc_mult(Vector.dot(new_forward, up))
     new_up.normalize()
 
-    new_right = Vector.cross(new_up, new_forward)
-
     # TODO: below does not need to be a full list you can just ad +[0]
     matrix = [[0.0] * 4 for _ in range(4)]
-    matrix[0][0], matrix[0][1], matrix[0][2] = new_right.cds
+    matrix[0][0], matrix[0][1], matrix[0][2] = right.cds
 
     matrix[1][0], matrix[1][1], matrix[1][2] = new_up.cds
 
