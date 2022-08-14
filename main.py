@@ -1,40 +1,42 @@
 from mesh import *
 from sys import exit
 from math import tan
-import time
 
 pygame.init()
 
-# constants
-W = 800  # width
-H = 800  # height
+# ~~ Constants
+W = 800  # width of screen
+H = 800  # height of screen
 Near = 0.1  # closest 'player' can see
 Far = 1000  # farthest 'player' can see
 Fov = 3.14159 / 2  # field of view, 90 degrees
 
-# Create projection Matrix (4x4)
+# ~~ Create projection Matrix (4x4)
 # Written: [row][column] top to bottom, left to right
-mat_proj = [[0.0] * 4 for i in range(4)]
+mat_proj = [[0.0] * 4 for _ in range(4)]
 mat_proj[0][0] = (W / H) * ((tan(Fov / 2)) ** -1)
 mat_proj[1][1] = ((tan(Fov / 2)) ** -1)
 mat_proj[2][2] = Far / (Far - Near)
 mat_proj[3][2] = (-Far * Near) / (Far - Near)
 mat_proj[2][3] = 1
 
-# Camera vectors
+# ~~ Camera vectors
 # camera position; at origin by default
 camera_pos = Vector(0, 0, 0)
 
 # direction camera is pointing; along z axis by default
 camera_dir = Vector(0, 0, 1)
+
 # up direction; along y axis by default
 up = Vector(0, 1, 0)
-# right direction
-right = Vector.cross(up, camera_dir)
-# up, right and camera_dir form a basis and are used for transformations
 
-mat_camera = point_at_matrix(camera_pos, camera_pos + camera_dir, up, right)
-mat_view = quick_invert(mat_camera)
+# right direction; ortho to up and camera_dir
+right = Vector.cross(up, camera_dir)
+
+# ~~ View change matrix
+# mat_camera = point_at_matrix(camera_pos, camera_pos + camera_dir, up, right)
+# mat_view = quick_invert(mat_camera)
+mat_view = get_viewmat(camera_pos, camera_dir, up, right)
 
 # Create screen
 screen = pygame.display.set_mode((W, H))
@@ -42,14 +44,16 @@ screen = pygame.display.set_mode((W, H))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def redraw(screen):
+def redraw(scrn):
     screen.fill((0, 0, 0))
 
-    teapot.draw(screen, mat_proj, mat_view)
+    for o in objects:
+        o.draw(scrn, mat_proj, mat_view)
+
     pygame.display.flip()
 
 
-def camera_movement(keys: dict) -> List[List[float]]:
+def camera_movement(keys) -> List[List[float]]:
     """ Handle the movement for the camera. Returns a new view transformation
     matrix.
     """
@@ -58,7 +62,8 @@ def camera_movement(keys: dict) -> List[List[float]]:
     global right
 
     if keys[pygame.K_SPACE]:
-        teapot.rotate([0.002, 0.003, 0.004])
+        for o in objects:
+            o.rotate([0.002, 0.003, 0.004])
 
     # Separating <if> statements into negative/positive movement directions
     # allows for movement in multiple directions at once
@@ -72,12 +77,12 @@ def camera_movement(keys: dict) -> List[List[float]]:
     # horizontal yaw
     if keys[pygame.K_z]:
         camera_dir = camera_dir.rad_rotate(0.0, 0.005, 0.0)
-        # Right direction only changes with differing yaw
+        # Right direction only changes with yaw
         right = Vector.cross(up, camera_dir)
         right.normalize()
     elif keys[pygame.K_x]:
-        camera_dir = camera_dir.rad_zzzzzrotate(0.0, -0.005, 0.0)
-        # Right direction only changes with differing yaw
+        camera_dir = camera_dir.rad_rotate(0.0, -0.005, 0.0)
+        # Right direction only changes with yaw
         right = Vector.cross(up, camera_dir)
         right.normalize()
 
@@ -94,18 +99,16 @@ def camera_movement(keys: dict) -> List[List[float]]:
         # camera position movement
         camera_pos -= right.sc_mult(0.1)
 
-    return quick_invert(
-        point_at_matrix(camera_pos, camera_pos + camera_dir, up, right))
+    return get_viewmat(camera_pos, camera_dir, up, right)
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-#cube = gen_cube(Vector(0, 0, 40), 10)
-teapot = file_to_mesh(Vector(0, 3, 10), r"C:\Users\littl\Projects\3d_graphics_engine\Assets\teapot.obj")
-teapot.rotate([0, 0, 3.1415])
+objects = []
+# objects.append(gen_cube(Vector(0, 0, 40), 10))
+objects.append(file_to_mesh(Vector(0, 2, 10), r".\Assets\teapot.obj"))
+objects[0].rotate([0, 0, 3.1415])
 
-s = time.time()
-f = 0
 running = True
 while running:
     for event in pygame.event.get():
@@ -114,9 +117,6 @@ while running:
     mat_view = camera_movement(pygame.key.get_pressed())
 
     redraw(screen)
-    f = time.time()
-    print(f"Tick lasted: {f-s}")
-    s = f
 
 pygame.quit()
 exit()
