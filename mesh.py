@@ -1,8 +1,8 @@
 import itertools
 import pygame
+import time
 
 from math import sin, cos
-
 from typing import List
 
 
@@ -24,7 +24,34 @@ class Vector:
         v = mesh_ro + self
         return pm_mult(mat_proj, v)
 
-    def rotate(self, alpha: float, beta: float, theta: float) -> 'Vector':
+    def rotate(self, rot: List[List[float]]) -> 'Vector':
+        """  Return a new vector rotated the corresponding radians
+        around its origin
+        rot is a list of list of cos and sin calculations done on the
+        angles the vector is to be rotated
+        """
+        x, y, z = self.cds
+        a, b, c = x, y, z
+        # y = b * cos(alpha) + c * sin(alpha)
+        # z = c * cos(alpha) - b * sin(alpha)
+        y = b * rot[0][0] + c * rot[0][1]
+        z = c * rot[0][0] - b * rot[0][1]
+
+        a, b, c = x, y, z
+        # x = a * cos(beta) - c * sin(beta)
+        # z = a * sin(beta) + c * cos(beta)
+        x = a * rot[1][0] - c * rot[1][1]
+        z = a * rot[1][1] + c * rot[1][0]
+
+        a, b, c = x, y, z
+        # x = a * cos(theta) + b * sin(theta)
+        # y = b * cos(theta) - a * sin(theta)
+        x = a * rot[2][0] + b * rot[2][1]
+        y = b * rot[2][0] - a * rot[2][1]
+
+        return Vector(x, y, z)
+
+    def rad_rotate(self, alpha: float, beta:float, theta:float) -> 'Vector':
         """  Return a new vector rotated the corresponding radians
         around its origin
         """
@@ -40,6 +67,7 @@ class Vector:
         a, b, c = x, y, z
         x = a * cos(theta) + b * sin(theta)
         y = b * cos(theta) - a * sin(theta)
+
 
         return Vector(x, y, z)
 
@@ -166,10 +194,10 @@ class Triangle:
             vertices.append(pa_mult(mat_view, v))
         return Triangle(vertices, self.clr)
 
-    def rotate(self, rot: List[float]) -> 'Triangle':
+    def rotate(self, rot: List[List[float]]) -> 'Triangle':
         """ Return a new triangle rotated the corresponding radians
         """
-        rover = list(map(lambda v: v.rotate(*rot), self.vertices))
+        rover = list(map(lambda v: v.rotate(rot), self.vertices))
         return Triangle(rover, self.clr)
 
     def __repr__(self):
@@ -202,6 +230,7 @@ class Mesh:
         <mat_view> the view transform matrix
         """
         proj_triangles = self._raster(mat_proj, mat_view)
+
         for t in proj_triangles:
             t.draw(screen)
 
@@ -217,9 +246,15 @@ class Mesh:
         t = []
         # transform relative origin into view space
         view_ro = pa_mult(mat_view, self.ro)
+
+        # trig operations for vector rotation, done in advance as op is slow
+        rot = [[cos(self.rotation[0]), sin(self.rotation[0])],
+               [cos(self.rotation[1]), sin(self.rotation[1])],
+               [cos(self.rotation[2]), sin(self.rotation[2])]]
+
         for triangle in self.triangles:
             # rotate triangle
-            rot_triangle = triangle.rotate(self.rotation)
+            rot_triangle = triangle.rotate(rot)
 
             # transform triangle into view space
             view_triangle = rot_triangle.view_transform(mat_view)

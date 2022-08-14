@@ -1,6 +1,7 @@
 from mesh import *
 from sys import exit
 from math import tan
+import time
 
 pygame.init()
 
@@ -44,7 +45,7 @@ screen = pygame.display.set_mode((W, H))
 def redraw(screen):
     screen.fill((0, 0, 0))
 
-    cube.draw(screen, mat_proj, mat_view)
+    teapot.draw(screen, mat_proj, mat_view)
     pygame.display.flip()
 
 
@@ -57,7 +58,7 @@ def camera_movement(keys: dict) -> List[List[float]]:
     global right
 
     if keys[pygame.K_SPACE]:
-        cube.rotate([0.002, 0.003, 0.004])
+        teapot.rotate([0.002, 0.003, 0.004])
 
     # Separating <if> statements into negative/positive movement directions
     # allows for movement in multiple directions at once
@@ -70,12 +71,12 @@ def camera_movement(keys: dict) -> List[List[float]]:
 
     # horizontal yaw
     if keys[pygame.K_z]:
-        camera_dir = camera_dir.rotate(0.0, 0.005, 0.0)
+        camera_dir = camera_dir.rad_rotate(0.0, 0.005, 0.0)
         # Right direction only changes with differing yaw
         right = Vector.cross(up, camera_dir)
         right.normalize()
     elif keys[pygame.K_x]:
-        camera_dir = camera_dir.rotate(0.0, -0.005, 0.0)
+        camera_dir = camera_dir.rad_zzzzzrotate(0.0, -0.005, 0.0)
         # Right direction only changes with differing yaw
         right = Vector.cross(up, camera_dir)
         right.normalize()
@@ -100,8 +101,11 @@ def camera_movement(keys: dict) -> List[List[float]]:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #cube = gen_cube(Vector(0, 0, 40), 10)
-cube = file_to_mesh(Vector(0, 0, 10), r"C:\Users\littl\Projects\3d_graphics_engine\Assets\teapot.obj")
+teapot = file_to_mesh(Vector(0, 3, 10), r"C:\Users\littl\Projects\3d_graphics_engine\Assets\teapot.obj")
+teapot.rotate([0, 0, 3.1415])
 
+s = time.time()
+f = 0
 running = True
 while running:
     for event in pygame.event.get():
@@ -110,6 +114,9 @@ while running:
     mat_view = camera_movement(pygame.key.get_pressed())
 
     redraw(screen)
+    f = time.time()
+    print(f"Tick lasted: {f-s}")
+    s = f
 
 pygame.quit()
 exit()
