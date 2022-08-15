@@ -3,6 +3,8 @@ import pygame
 
 from math import sin, cos
 from typing import List
+from bisect import insort
+
 
 class Vector:
     # coordinates of a 3d vector
@@ -152,7 +154,7 @@ class Triangle:
 
     def gen_cm(self):
         """ Find the center of mass of this triangle"""
-        self.cm = sum(self.vertices).sc_mult(0.3333)
+        self.cm = (self.vertices[0] + self.vertices[1] + self.vertices[2]).sc_mult(0.3333)
 
     def draw(self, screen) -> None:
         """ Draws this triangle onto the screen
@@ -201,6 +203,7 @@ class Triangle:
         # as it's parent triangle to do this correctly
         self.normal.normalize()
         t.normal = self.normal
+        t.gen_cm()
         return t
 
     def view_transform(self, mat_view: List[List[float]]) -> 'Triangle':
@@ -281,8 +284,9 @@ class Mesh:
             # if normal is pointing away from screen
             view_tri.gen_normal()
             if view_tri.normal.dot(view_tri.vertices[0] + view_ro) < 0:
-                # TODO: implement bisect.insort() (update to 3.10)
-                t.append(view_tri.project(view_ro, mat_proj))
+                # painter's algorithm, order triangles by (negative) z value
+                insort(t, view_tri.project(view_ro, mat_proj),
+                       key=lambda x: -x.cm.cds[2])
         return t
 
     def rotate(self, rot: List[float]) -> None:
