@@ -1,3 +1,5 @@
+import time
+
 from mesh import *
 from sys import exit
 from math import tan
@@ -109,6 +111,7 @@ objects = []
 objects.append(file_to_mesh(Vector(0, 2, 10), r".\Assets\teapot.obj"))
 objects[0].rotate([0, 0, 3.1415])
 
+start = time.time()
 running = True
 while running:
     for event in pygame.event.get():
@@ -117,6 +120,9 @@ while running:
     mat_view = camera_movement(pygame.key.get_pressed())
 
     redraw(screen)
+    end = time.time()
+    print(f"Tick time: {end - start}")
+    start = end
 
 pygame.quit()
 exit()

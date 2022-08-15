@@ -4,7 +4,6 @@ import pygame
 from math import sin, cos
 from typing import List
 
-
 class Vector:
     # coordinates of a 3d vector
     cds = list
@@ -38,6 +37,11 @@ class Vector:
         around its origin
         <rot> is a list of list of cos and sin calculations done on the
         angles the vector is to be rotated
+
+        Specifically:
+        rot = [[cos(self.rotation[0]), sin(self.rotation[0])],
+               [cos(self.rotation[1]), sin(self.rotation[1])],
+               [cos(self.rotation[2]), sin(self.rotation[2])]]
         """
         x, y, z = self.cds
         a, b, c = x, y, z
@@ -125,8 +129,14 @@ class Triangle:
     # defined clockwise relative to the relative origin (normal pointing out)
     vertices: List['Vector']
 
-    # triangle normal
+    # triangle normal; over written to the parent's normal if the triangle has
+    # been projected. Generated as needed.
     normal: Vector
+
+    # triangle center of mass; over written to the parent's if the triangle
+    # has been projected. Generated as needed. Relative to origin of vertices,
+    # not to absolute origin.
+    cm: Vector
 
     # colour of triangle in RGB
     clr: tuple
@@ -139,6 +149,10 @@ class Triangle:
         """ Sets the normal for this triangle """
         self.normal = Vector.cross(self.vertices[1] - self.vertices[0],
                                    self.vertices[2] - self.vertices[0])
+
+    def gen_cm(self):
+        """ Find the center of mass of this triangle"""
+        self.cm = sum(self.vertices).sc_mult(0.3333)
 
     def draw(self, screen) -> None:
         """ Draws this triangle onto the screen
@@ -185,6 +199,7 @@ class Triangle:
 
         # normal used in shading, projected triangle must have the same normal
         # as it's parent triangle to do this correctly
+        self.normal.normalize()
         t.normal = self.normal
         return t
 
@@ -257,18 +272,17 @@ class Mesh:
 
         for triangle in self.triangles:
             # rotate triangle
-            rot_triangle = triangle.rotate(rot)
+            rot_tri = triangle.rotate(rot)
 
             # transform rotated triangle into view space
-            view_triangle = rot_triangle.view_transform(mat_view)
+            view_tri = rot_tri.view_transform(mat_view)
 
             # hidden surface elimination based on normals, only draw triangle
             # if normal is pointing away from screen
-            view_triangle.gen_normal()
-            if view_triangle.normal.dot(
-                    view_triangle.vertices[0] + view_ro) < 0:
-                view_triangle.normal.normalize()
-                t.append(view_triangle.project(view_ro, mat_proj))
+            view_tri.gen_normal()
+            if view_tri.normal.dot(view_tri.vertices[0] + view_ro) < 0:
+                # TODO: implement bisect.insort() (update to 3.10)
+                t.append(view_tri.project(view_ro, mat_proj))
         return t
 
     def rotate(self, rot: List[float]) -> None:
@@ -290,11 +304,24 @@ def mmult(matrix: List[List[float]], v: Vector) -> List[float]:
     """ Multiplies the 4x4 <matrix> with a 3d vector <v>. The '4th' element of
     <v> is presupposed to be 1. Return the resulting 3d vector as a list.
     """
-    ls = [0] * 4
-    for i in range(4):
-        for k in range(3):
-            ls[i] += v.cds[k] * matrix[k][i]
-        ls[i] += matrix[3][i]
+    # ls = [0] * 4
+    # for i in range(4):
+    #     for k in range(3):
+    #         ls[i] += v.cds[k] * matrix[k][i]
+    #     ls[i] += matrix[3][i]
+    #
+    # return ls
+
+    # Code performs the same function as above, but about 0.03 seconds faster
+    # in total
+    ls = [0.0] * 4
+    ls[0] = v.cds[0] * matrix[0][0] + v.cds[1] * matrix[1][0] + v.cds[2] * \
+            matrix[2][0] + matrix[3][0]
+    ls[1] = v.cds[0] * matrix[0][1] + v.cds[1] * matrix[1][1] + v.cds[2] * \
+            matrix[2][1] + matrix[3][1]
+    ls[2] = v.cds[0] * matrix[0][2] + v.cds[1] * matrix[1][2] + v.cds[2] * \
+            matrix[2][2] + matrix[3][2]
+    ls[3] = v.cds[2]
 
     return ls
 
