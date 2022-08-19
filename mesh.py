@@ -19,20 +19,21 @@ class Vector:
 
         <mat_proj> is the projection matrix
         <mesh_ro> is a Vector; the relative origin of the parent Mesh
+
+        Vector should have been translated into view space
         """
         # actual position of the vector relative to origin instead of ro
-        ls = mmult(mat_proj, mesh_ro + self)
-        if ls[3] != 0:
+        v = mmult(mat_proj, mesh_ro + self)
+        z = mesh_ro.cds[2] + self.cds[2]
+        if z != 0:
             for i in range(3):
-                ls[i] /= ls[3]
-                ls[i] += 1  # changes range from -1 to 1 to 0 to 2
-                ls[i] /= 2  # changes scale to 0 to 1
+                v.cds[i] /= z
+                v.cds[i] += 1  # changes range from -1 to 1 to 0 to 2
+                v.cds[i] /= 2  # changes scale to 0 to 1
             # TODO: remove hardcoded scaling
-            ls[0] *= 800
-            ls[1] *= 800
-            return Vector(*ls[:3])
-        else:
-            return Vector(0, 0, 0)
+            v.cds[0] *= 800
+            v.cds[1] *= 800
+        return v
 
     def rotate(self, rot: List[List[float]]) -> 'Vector':
         """  Return a new vector rotated the corresponding radians
@@ -120,6 +121,11 @@ class Vector:
             v[i] = self.cds[i] - other.cds[i]
         return Vector(*v)
 
+    def __eq__(self, other: 'Vector') -> bool:
+        return (round(self.cds[0] - other.cds[0], 3) == 0.000) and (
+                round(self.cds[1] - other.cds[1], 3) == 0.000) and (
+                       round(self.cds[2] - other.cds[2], 3) == 0.000)
+
     def __repr__(self) -> str:
         return (f"Vector({round(self.cds[0], 2)}, "
                 f"{round(self.cds[1], 2)}, "
@@ -137,7 +143,7 @@ class Triangle:
 
     # triangle center of mass; over written to the parent's if the triangle
     # has been projected. Generated as needed. Relative to origin of vertices,
-    # not to absolute origin.
+    # not to absolute (world) origin.
     cm: Vector
 
     # colour of triangle in RGB
@@ -154,7 +160,8 @@ class Triangle:
 
     def gen_cm(self):
         """ Find the center of mass of this triangle"""
-        self.cm = (self.vertices[0] + self.vertices[1] + self.vertices[2]).sc_mult(0.3333)
+        self.cm = (self.vertices[0] + self.vertices[1] + self.vertices[
+            2]).sc_mult(0.3333)
 
     def draw(self, screen) -> None:
         """ Draws this triangle onto the screen
@@ -166,7 +173,7 @@ class Triangle:
         for v in self.vertices:
             proj_vert.append(tuple(v.cds[:2]))
 
-        # shading
+        # shading, light comes from camera
         light_dir = Vector(0, 0, -1)
         clr = sc_mult(self.clr, abs(self.normal.dot(light_dir)))
 
@@ -191,8 +198,10 @@ class Triangle:
         """ Returns a new Triangle; this one projected onto the screen
         using the projection matrix
 
-        Precondition: the normal for this triangle has been generated (using
-        Triangle.gen_normal)
+        Precondition:
+        The normal for this triangle has been generated
+        The cm of this triangle as been generated
+        The triangle has been transformed into view space
         """
         image = []
         for v in self.vertices:
@@ -201,9 +210,10 @@ class Triangle:
 
         # normal used in shading, projected triangle must have the same normal
         # as it's parent triangle to do this correctly
-        self.normal.normalize()
         t.normal = self.normal
-        t.gen_cm()
+
+        # cm of projected triangle set to this one's necessary for painters alg
+        t.cm = self.cm
         return t
 
     def view_transform(self, mat_view: List[List[float]]) -> 'Triangle':
@@ -212,7 +222,7 @@ class Triangle:
         """
         vertices = []
         for v in self.vertices:
-            vertices.append(Vector(*mmult(mat_view, v)[:3]))
+            vertices.append(mmult(mat_view, v))
         return Triangle(vertices, self.clr)
 
     def rotate(self, rot: List[List[float]]) -> 'Triangle':
@@ -232,6 +242,7 @@ class Mesh:
 
     # list of Triangles, which are relatively positioned to relative origin (ro)
     # of the Mesh
+    # All triangles in self.triangles must have their normals generated
     triangles: List[Triangle]
 
     # cumulative rotation value. 3 numbers, represent rotation about the ro
@@ -266,7 +277,7 @@ class Mesh:
         """
         t = []
         # transform relative origin into view space
-        view_ro = Vector(*mmult(mat_view, self.ro)[:3])
+        view_ro = mmult(mat_view, self.ro)
 
         # trig operations for vector rotation, done in advance as op is slow
         rot = [[cos(self.rotation[0]), sin(self.rotation[0])],
@@ -274,17 +285,21 @@ class Mesh:
                [cos(self.rotation[2]), sin(self.rotation[2])]]
 
         for triangle in self.triangles:
-            # rotate triangle
-            rot_tri = triangle.rotate(rot)
+            # rotate and transform the normal of this triangle
+            view_norm = norm_mmult(mat_view, triangle.normal.rotate(rot))
 
-            # transform rotated triangle into view space
-            view_tri = rot_tri.view_transform(mat_view)
+            # TODO: is the below norm_mmult or mmult?
+            # process triangle only if its normal points away from the screen
+            if view_norm.dot(view_ro + mmult(mat_view,
+                                             triangle.vertices[0].rotate(
+                                                 rot))) < 0:
+                # rotate and transform triangle
+                view_tri = triangle.rotate(rot).view_transform(mat_view)
 
-            # hidden surface elimination based on normals, only draw triangle
-            # if normal is pointing away from screen
-            view_tri.gen_normal()
-            if view_tri.normal.dot(view_tri.vertices[0] + view_ro) < 0:
-                # painter's algorithm, order triangles by (negative) z value
+                # set the triangles normal and center of mass
+                view_tri.normal = view_norm
+                view_tri.gen_cm()
+
                 insort(t, view_tri.project(view_ro, mat_proj),
                        key=lambda x: -x.cm.cds[2])
         return t
@@ -304,12 +319,12 @@ def sc_mult(tup: tuple, sc: float) -> tuple:
     return tuple(map(lambda x: int(x * sc), tup))
 
 
-def mmult(matrix: List[List[float]], v: Vector) -> List[float]:
+def mmult(matrix: List[List[float]], v: Vector) -> Vector:
     """ Multiplies the 4x4 <matrix> with a 3d vector <v>. The '4th' element of
-    <v> is presupposed to be 1. Return the resulting 3d vector as a list.
+    <v> is presupposed to be 1. Return the resulting 3d vector
     """
-    # ls = [0] * 4
-    # for i in range(4):
+    # ls = [0.0] * 3
+    # for i in range(3):
     #     for k in range(3):
     #         ls[i] += v.cds[k] * matrix[k][i]
     #     ls[i] += matrix[3][i]
@@ -317,17 +332,32 @@ def mmult(matrix: List[List[float]], v: Vector) -> List[float]:
     # return ls
 
     # Code performs the same function as above, but about 0.03 seconds faster
-    # in total
-    ls = [0.0] * 4
+    ls = [0.0] * 3
     ls[0] = v.cds[0] * matrix[0][0] + v.cds[1] * matrix[1][0] + v.cds[2] * \
             matrix[2][0] + matrix[3][0]
     ls[1] = v.cds[0] * matrix[0][1] + v.cds[1] * matrix[1][1] + v.cds[2] * \
             matrix[2][1] + matrix[3][1]
     ls[2] = v.cds[0] * matrix[0][2] + v.cds[1] * matrix[1][2] + v.cds[2] * \
             matrix[2][2] + matrix[3][2]
-    ls[3] = v.cds[2]
 
-    return ls
+    return Vector(*ls)
+
+
+def norm_mmult(matrix: List[List[float]], v: Vector) -> Vector:
+    """ Multiplies the 4x4 <matrix> with a 3d vector <v>. The '4th' element of
+    <v> is presupposed to be 0. Return the resulting 3d vector
+    Do not mix up between this function and mmult().
+    """
+    # Code performs the same function as above, but about 0.03 seconds faster
+    ls = [0.0] * 3
+    ls[0] = v.cds[0] * matrix[0][0] + v.cds[1] * matrix[1][0] + v.cds[2] * \
+            matrix[2][0]
+    ls[1] = v.cds[0] * matrix[0][1] + v.cds[1] * matrix[1][1] + v.cds[2] * \
+            matrix[2][1]
+    ls[2] = v.cds[0] * matrix[0][2] + v.cds[1] * matrix[1][2] + v.cds[2] * \
+            matrix[2][2]
+
+    return Vector(*ls)
 
 
 def get_viewmat(pos: Vector, forward: Vector, up: Vector, right: Vector) \
@@ -413,6 +443,8 @@ def file_to_mesh(pos: Vector, d: str):
         while line[0] == "f":
             t = Triangle(list(map(lambda n: vertices[int(n) - 1], line[1:])),
                          (255, 255, 255))
+            t.gen_normal()
+            t.normal.normalize()
             triangles.append(t)
             line = f.readline().split(" ")
 
