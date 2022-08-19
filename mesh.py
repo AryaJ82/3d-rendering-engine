@@ -299,9 +299,9 @@ class Mesh:
                 # set the triangles normal and center of mass
                 view_tri.normal = view_norm
                 view_tri.gen_cm()
-
-                insort(t, view_tri.project(view_ro, mat_proj),
-                       key=lambda x: -x.cm.cds[2])
+                t.append(view_tri.project(view_ro, mat_proj))
+                # insort(t, view_tri.project(view_ro, mat_proj),
+                #        key=lambda x: -x.cm.cds[2])
         return t
 
     def rotate(self, rot: List[float]) -> None:
