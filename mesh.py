@@ -231,6 +231,14 @@ class Triangle:
         rover = list(map(lambda v: v.rotate(rot), self.vertices))
         return Triangle(rover, self.clr)
 
+    def __lt__(self, other: 'Triangle'):
+        """ Less than operation
+        Precondition: Triangle cm has already been generated
+        """
+        # We want triangles sorted by decreasing z value,
+        # thus we compare -cm.cds[2] => > rather than <
+        return self.cm.cds[2] > other.cm.cds[2]
+
     def __repr__(self):
         return f"[{self.vertices[0]} , {self.vertices[1]}, {self.vertices[2]}]"
 
@@ -275,6 +283,7 @@ class Mesh:
         <mat_proj> is the associated projection matrix
         <mat_view> the view transform matrix
         """
+        # draw queue of triangles
         t = []
         # transform relative origin into view space
         view_ro = mmult(mat_view, self.ro)
@@ -299,9 +308,12 @@ class Mesh:
                 # set the triangles normal and center of mass
                 view_tri.normal = view_norm
                 view_tri.gen_cm()
-                t.append(view_tri.project(view_ro, mat_proj))
-                # insort(t, view_tri.project(view_ro, mat_proj),
-                #        key=lambda x: -x.cm.cds[2])
+
+                # project triangle and add it to the draw queue
+                # See Triangle.__lt__ for relevant operator overloading for the
+                # bisect.insort method
+                insort(t, view_tri.project(view_ro, mat_proj))
+
         return t
 
     def rotate(self, rot: List[float]) -> None:
@@ -321,7 +333,8 @@ def sc_mult(tup: tuple, sc: float) -> tuple:
 
 def mmult(matrix: List[List[float]], v: Vector) -> Vector:
     """ Multiplies the 4x4 <matrix> with a 3d vector <v>. The '4th' element of
-    <v> is presupposed to be 1. Return the resulting 3d vector
+    <v> is presupposed to be 1. Return the resulting 3d vector.
+    Functions with a 4x3 vector
     """
     # ls = [0.0] * 3
     # for i in range(3):
