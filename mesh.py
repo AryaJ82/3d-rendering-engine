@@ -336,22 +336,11 @@ def mmult(matrix: List[List[float]], v: Vector) -> Vector:
     <v> is presupposed to be 1. Return the resulting 3d vector.
     Functions with a 4x3 vector
     """
-    # ls = [0.0] * 3
-    # for i in range(3):
-    #     for k in range(3):
-    #         ls[i] += v.cds[k] * matrix[k][i]
-    #     ls[i] += matrix[3][i]
-    #
-    # return ls
-
-    # Code performs the same function as above, but about 0.03 seconds faster
     ls = [0.0] * 3
-    ls[0] = v.cds[0] * matrix[0][0] + v.cds[1] * matrix[1][0] + v.cds[2] * \
-            matrix[2][0] + matrix[3][0]
-    ls[1] = v.cds[0] * matrix[0][1] + v.cds[1] * matrix[1][1] + v.cds[2] * \
-            matrix[2][1] + matrix[3][1]
-    ls[2] = v.cds[0] * matrix[0][2] + v.cds[1] * matrix[1][2] + v.cds[2] * \
-            matrix[2][2] + matrix[3][2]
+    for i in range(3):
+        for k in range(3):
+            ls[i] += v.cds[k] * matrix[i][k]
+        ls[i] += matrix[i][3]
 
     return Vector(*ls)
 
@@ -361,14 +350,11 @@ def norm_mmult(matrix: List[List[float]], v: Vector) -> Vector:
     <v> is presupposed to be 0. Return the resulting 3d vector
     Do not mix up between this function and mmult().
     """
-    # Code performs the same function as above, but about 0.03 seconds faster
+
     ls = [0.0] * 3
-    ls[0] = v.cds[0] * matrix[0][0] + v.cds[1] * matrix[1][0] + v.cds[2] * \
-            matrix[2][0]
-    ls[1] = v.cds[0] * matrix[0][1] + v.cds[1] * matrix[1][1] + v.cds[2] * \
-            matrix[2][1]
-    ls[2] = v.cds[0] * matrix[0][2] + v.cds[1] * matrix[1][2] + v.cds[2] * \
-            matrix[2][2]
+    for i in range(3):
+        for k in range(3):
+            ls[i] += v.cds[k] * matrix[i][k]
 
     return Vector(*ls)
 
@@ -389,15 +375,15 @@ def get_viewmat(pos: Vector, forward: Vector, up: Vector, right: Vector) \
     new_up.normalize()
 
     matrix = [[0.0] * 4 for _ in range(4)]
-    matrix[0][0], matrix[1][0], matrix[2][0] = right.cds
+    matrix[0][0], matrix[0][1], matrix[0][2] = right.cds
 
-    matrix[0][1], matrix[1][1], matrix[2][1] = new_up.cds
+    matrix[1][0], matrix[1][1], matrix[1][2] = new_up.cds
 
-    matrix[0][2], matrix[1][2], matrix[2][2] = forward.cds
+    matrix[2][0], matrix[2][1], matrix[2][2] = forward.cds
 
-    matrix[3][0] = - pos.dot(right)
-    matrix[3][1] = - pos.dot(new_up)
-    matrix[3][2] = - pos.dot(forward)
+    matrix[0][3] = - pos.dot(right)
+    matrix[1][3] = - pos.dot(new_up)
+    matrix[2][3] = - pos.dot(forward)
 
     matrix[3][3] = 1.0
 

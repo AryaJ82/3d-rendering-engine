@@ -19,8 +19,8 @@ mat_proj = [[0.0] * 4 for _ in range(4)]
 mat_proj[0][0] = (W / H) * ((tan(Fov / 2)) ** -1)
 mat_proj[1][1] = ((tan(Fov / 2)) ** -1)
 mat_proj[2][2] = Far / (Far - Near)
-mat_proj[3][2] = (-Far * Near) / (Far - Near)
-mat_proj[2][3] = 1
+mat_proj[2][3] = (-Far * Near) / (Far - Near)
+mat_proj[3][2] = 1
 
 # ~~ Camera vectors
 # camera position; at origin by default
