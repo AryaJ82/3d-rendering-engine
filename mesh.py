@@ -177,10 +177,7 @@ def triangle_draw(triangle: List[List[float]], screen) -> None:
         proj_vert.append(tuple(triangle[i][:2]))
 
     # shading, light comes from camera direction
-    light_dir = [0, 0, -1]
-    clr = tScMult((255, 255, 255),
-                  abs(vDot(triangle[0], light_dir)) / vDot(triangle[0],
-                                                           triangle[0]))
+    clr = tScMult((255, 255, 255), abs(vDot(triangle[0], [0, 0, -1])))
 
     # draw triangle
     pygame.draw.polygon(screen, clr, proj_vert)
@@ -192,11 +189,9 @@ def triangle_project(triangle: List[List[float]], mesh_ro: List[float],
     using the projection matrix
 
     Precondition:
-    The normal for this triangle has been generated
-    The cm of this triangle as been generated
     The triangle has been transformed into view space
     """
-    # normal used in shading, projected triangle must have the same normal
+    # normal is used in shading, projected triangle must have the same normal
     # as it's parent triangle to do this correctly
     imageTriangle = [triangle[0]]
     for i in range(1, 4):
@@ -213,7 +208,9 @@ List[List[float]]:
     """ Returns a new triangle as it would be if the current's vertices
     were transformed into view space using mat_view
     """
-    viewTriangle = [triangle[0]]
+    # norm_mmult only changes the orientation of the vector, does not modify
+    # it's origin
+    viewTriangle = [norm_mmult(mat_view, triangle[0])]
     for i in range(1, 4):
         viewTriangle.append(mmult(mat_view, triangle[i]))
     return viewTriangle

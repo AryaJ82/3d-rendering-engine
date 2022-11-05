@@ -78,12 +78,12 @@ def camera_movement(keys) -> List[List[float]]:
 
     # horizontal yaw
     if keys[pygame.K_z]:
-        camera_dir = rad_rotate(camera_dir, 0.0, 0.01, 0.0)
+        camera_dir = rad_rotate(camera_dir, 0.0, 0.05, 0.0)
         # Right direction only changes with yaw
         right = vCross(up, camera_dir)
         vNormalize(right)
     elif keys[pygame.K_x]:
-        camera_dir = rad_rotate(camera_dir, 0.0, -0.01, 0.0)
+        camera_dir = rad_rotate(camera_dir, 0.0, -0.05, 0.0)
         # Right direction only changes with yaw
         right = vCross(up, camera_dir)
         vNormalize(right)
