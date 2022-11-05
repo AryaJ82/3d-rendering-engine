@@ -24,16 +24,16 @@ mat_proj[3][2] = 1
 
 # ~~ Camera vectors
 # camera position; at origin by default
-camera_pos = Vector(0, 0, 0)
+camera_pos = [0, 0, 0]
 
 # direction camera is pointing; along z axis by default
-camera_dir = Vector(0, 0, 1)
+camera_dir = [0, 0, 1]
 
 # up direction; along y axis by default
-up = Vector(0, 1, 0)
+up = [0, 1, 0]
 
 # right direction; ortho to up and camera_dir
-right = Vector.cross(up, camera_dir)
+right = vCross(up, camera_dir)
 
 # ~~ View change matrix
 # mat_camera = point_at_matrix(camera_pos, camera_pos + camera_dir, up, right)
@@ -72,34 +72,34 @@ def camera_movement(keys) -> List[List[float]]:
 
     # vertical elevation/depression
     if keys[pygame.K_w]:
-        camera_pos -= up.sc_mult(0.1)
+        camera_pos = vSub(camera_pos, vScMult(up, 0.1))
     elif keys[pygame.K_s]:
-        camera_pos += up.sc_mult(0.1)
+        camera_pos = vAdd(camera_pos, vScMult(up, 0.1))
 
     # horizontal yaw
     if keys[pygame.K_z]:
-        camera_dir = camera_dir.rad_rotate(0.0, 0.01, 0.0)
+        camera_dir = rad_rotate(camera_dir, 0.0, 0.01, 0.0)
         # Right direction only changes with yaw
-        right = Vector.cross(up, camera_dir)
-        right.normalize()
+        right = vCross(up, camera_dir)
+        vNormalize(right)
     elif keys[pygame.K_x]:
-        camera_dir = camera_dir.rad_rotate(0.0, -0.01, 0.0)
+        camera_dir = rad_rotate(camera_dir, 0.0, -0.01, 0.0)
         # Right direction only changes with yaw
-        right = Vector.cross(up, camera_dir)
-        right.normalize()
+        right = vCross(up, camera_dir)
+        vNormalize(right)
 
     # camera position (forward and backward) movement
     if keys[pygame.K_UP]:
-        camera_pos += camera_dir.sc_mult(0.1)
+        camera_pos = vAdd(camera_pos, vScMult(camera_dir, 0.1))
     elif keys[pygame.K_DOWN]:
-        camera_pos -= camera_dir.sc_mult(0.1)
+        camera_pos = vSub(camera_pos, vScMult(camera_dir, 0.1))
 
     # camera position (right and left) movement
     if keys[pygame.K_RIGHT]:
-        camera_pos += right.sc_mult(0.1)
+        camera_pos = vAdd(camera_pos, vScMult(right, 0.1))
     elif keys[pygame.K_LEFT]:
         # camera position movement
-        camera_pos -= right.sc_mult(0.1)
+        camera_pos = vSub(camera_pos, vScMult(right, 0.1))
 
     return get_viewmat(camera_pos, camera_dir, up, right)
 
@@ -107,8 +107,7 @@ def camera_movement(keys) -> List[List[float]]:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 objects = []
-# objects.append(gen_cube(Vector(0, 0, 40), 10))
-objects.append(file_to_mesh(Vector(0, 2, 10), r".\Assets\teapot.obj"))
+objects.append(file_to_mesh([0, 0, 10], r".\Assets\teapot.obj"))
 objects[0].rotate([0, 0, 3.1415])
 
 start = time.time()
