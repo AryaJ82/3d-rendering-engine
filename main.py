@@ -107,7 +107,7 @@ def camera_movement(keys) -> List[List[float]]:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 objects = []
-objects.append(file_to_mesh([0, 0, 10], r".\Assets\teapot.obj"))
+objects.append(file_to_mesh([0, 2, 7], r".\Assets\teapot.obj"))
 objects[0].rotate([0, 0, 3.1415])
 
 start = time.time()

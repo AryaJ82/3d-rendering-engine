@@ -4,6 +4,7 @@ import pygame
 from math import sin, cos
 from typing import List
 from bisect import insort
+import numpy
 
 
 def project(vector: List[float], mesh_ro, mat_proj: List[List[float]]):
@@ -16,7 +17,7 @@ def project(vector: List[float], mesh_ro, mat_proj: List[List[float]]):
     """
     # actual position of the vector relative to origin instead of ro
     v = mmult(mat_proj, vAdd(vector, mesh_ro))
-    z = mesh_ro[2] + vector[2] # scaled by z for parallax
+    z = mesh_ro[2] + vector[2]  # scaled by z for parallax
     if z != 0:
         for i in range(3):
             v[i] /= z
@@ -58,10 +59,12 @@ def vRotate(vector: List[float], rot: List[List[float]]) -> List[float]:
     x = a * rot[2][0] + b * rot[2][1]
     y = b * rot[2][0] - a * rot[2][1]
 
+    # return numpy.array([x, y, z], dtype=numpy.float32)
     return [x, y, z]
 
 
-def rad_rotate(vector: List[float], alpha: float, beta: float, theta: float) -> List[float]:
+def rad_rotate(vector: List[float], alpha: float, beta: float, theta: float) -> \
+List[float]:
     """  Return a new vector rotated the corresponding radians
     around its origin
     """
@@ -80,7 +83,8 @@ def rad_rotate(vector: List[float], alpha: float, beta: float, theta: float) -> 
 
     return [x, y, z]
 
-def vNormalize(vector : List[float]) -> None:
+
+def vNormalize(vector: List[float]) -> None:
     """ Normalize *this* vector"""
     s = sum(i ** 2 for i in vector) ** 0.5
     if s != 0:
@@ -126,120 +130,108 @@ def vSub(v: List[float], w: List[float]) -> List[float]:
 def vEq(v: List[float], w: List[float]) -> bool:
     return (round(v[0] - w[0], 3) == 0.000) and (
             round(v[1] - w[1], 3) == 0.000) and (
-            round(v[2] - w[2], 3) == 0.000)
+                   round(v[2] - w[2], 3) == 0.000)
 
 
-class Triangle:
-    # list of vectors corresponding to the vertices of the triangle in 3d space
-    # defined clockwise relative to the relative origin (normal pointing out)
-    vertices: List[List[float]]
+# class Triangle:
+#     # list of vectors corresponding to the vertices of the triangle in 3d space
+#     # defined clockwise relative to the relative origin (normal pointing out)
+#     vertices: List[List[float]]
+#
+#     # triangle normal; over written to the parent's normal if the triangle has
+#     # been projected. Generated as needed.
+#     normal: List[float]
+#
+#     # triangle center of mass; over written to the parent's if the triangle
+#     # has been projected. Generated as needed. Relative to origin of vertices,
+#     # not to absolute (world) origin.
+#     cm: List[float]
+#
+#     # colour of triangle in RGB
+#     clr: tuple
+#
+#     def __init__(self, vertices: List[List[float]], clr: tuple) -> None:
+#         self.vertices = vertices
+#         self.clr = clr
 
-    # triangle normal; over written to the parent's normal if the triangle has
-    # been projected. Generated as needed.
-    normal: List[float]
+def gen_normal(triangle: List[List[float]]):
+    """ Sets the normal for this triangle """
+    triangle[0] = vCross(vSub(triangle[2], triangle[1]),
+                         vSub(triangle[3], triangle[1]))
 
-    # triangle center of mass; over written to the parent's if the triangle
-    # has been projected. Generated as needed. Relative to origin of vertices,
-    # not to absolute (world) origin.
-    cm: List[float]
 
-    # colour of triangle in RGB
-    clr: tuple
+# def gen_cm(self):
+#     """ Find the center of mass of this triangle"""
+#     self.cm = vScMult(
+#         vAdd(vAdd(self.vertices[0],  self.vertices[1]),self.vertices[2]),
+#         0.333)
 
-    def __init__(self, vertices: List[List[float]], clr: tuple) -> None:
-        self.vertices = vertices
-        self.clr = clr
+def triangle_draw(triangle: List[List[float]], screen) -> None:
+    """ Draws this triangle onto the screen
 
-    def gen_normal(self):
-        """ Sets the normal for this triangle """
-        self.normal = vCross(vSub(self.vertices[1], self.vertices[0]),
-                             vSub(self.vertices[2], self.vertices[0]))
+    Precondition: This triangle has already been projected onto the screen
+    """
+    # find vertex positions on screen
+    proj_vert = []
+    for i in range(1, 4):
+        proj_vert.append(tuple(triangle[i][:2]))
 
-    def gen_cm(self):
-        """ Find the center of mass of this triangle"""
-        self.cm = vScMult(
-            vAdd(vAdd(self.vertices[0],  self.vertices[1]),self.vertices[2]),
-            0.333)
+    # shading, light comes from camera direction
+    light_dir = [0, 0, -1]
+    clr = tScMult((255, 255, 255),
+                  abs(vDot(triangle[0], light_dir)) / vDot(triangle[0],
+                                                           triangle[0]))
 
-    def draw(self, screen) -> None:
-        """ Draws this triangle onto the screen
+    # draw triangle
+    pygame.draw.polygon(screen, clr, proj_vert)
 
-        Precondition: This triangle has already been projected onto the screen
-        """
-        # find vertex positions on screen
-        proj_vert = []
-        for v in self.vertices:
-            proj_vert.append(tuple(v[:2]))
 
-        # shading, light comes from camera
-        light_dir = [0, 0, -1]
-        clr = tScMult(self.clr, abs(vDot(self.normal, light_dir))/vDot(self.normal, self.normal))
+def triangle_project(triangle: List[List[float]], mesh_ro: List[float],
+            mat_proj: List[List[float]]) -> List[List[float]]:
+    """ Returns a new Triangle; this one projected onto the screen
+    using the projection matrix
 
-        # draw triangle
-        pygame.draw.polygon(screen, clr, proj_vert)
+    Precondition:
+    The normal for this triangle has been generated
+    The cm of this triangle as been generated
+    The triangle has been transformed into view space
+    """
+    # normal used in shading, projected triangle must have the same normal
+    # as it's parent triangle to do this correctly
+    imageTriangle = [triangle[0]]
+    for i in range(1, 4):
+        imageTriangle.append(project(triangle[i], mesh_ro, mat_proj))
 
-    def draw_prime(self, screen) -> None:
-        """ Draws this triangle onto the screen
-        ALTERNATIVE TO Triangle.draw; this one draws a wireframe
+    # TODO: center of mass handling
+    # # cm of projected triangle set to this one's necessary for painters alg
+    # t.cm = self.cm
+    return imageTriangle
 
-        Precondition: This triangle has been projected onto the screen
-        """
-        proj_vert = []
-        for v in self.vertices:
-            proj_vert.append(tuple(v[:2]))
 
-        for line in itertools.combinations(proj_vert, 2):
-            pygame.draw.line(screen, (255, 255, 255), *line)
+def view_transform(triangle: List[List[float]], mat_view: List[List[float]]) -> \
+List[List[float]]:
+    """ Returns a new triangle as it would be if the current's vertices
+    were transformed into view space using mat_view
+    """
+    viewTriangle = [triangle[0]]
+    for i in range(1, 4):
+        viewTriangle.append(mmult(mat_view, triangle[i]))
+    return viewTriangle
 
-    def project(self, mesh_ro: List[float],
-                mat_proj: List[List[float]]) -> 'Triangle':
-        """ Returns a new Triangle; this one projected onto the screen
-        using the projection matrix
 
-        Precondition:
-        The normal for this triangle has been generated
-        The cm of this triangle as been generated
-        The triangle has been transformed into view space
-        """
-        image = []
-        for v in self.vertices:
-            image.append(project(v, mesh_ro, mat_proj))
-        t = Triangle(image, self.clr)
-        # print(t)
+def triangle_rotate(triangle:List[List[float]], rot: List[List[float]]) -> List[List[float]]:
+    """ Return a new triangle rotated the corresponding radians
+    """
+    return list(map(lambda v: vRotate(v, rot), triangle))
 
-        # normal used in shading, projected triangle must have the same normal
-        # as it's parent triangle to do this correctly
-        t.normal = self.normal
-
-        # cm of projected triangle set to this one's necessary for painters alg
-        t.cm = self.cm
-        return t
-
-    def view_transform(self, mat_view: List[List[float]]) -> 'Triangle':
-        """ Returns a new triangle as it would be if the current's vertices
-        were transformed into view space using mat_view
-        """
-        vertices = []
-        for v in self.vertices:
-            vertices.append(mmult(mat_view, v))
-        return Triangle(vertices, self.clr)
-
-    def rotate(self, rot: List[List[float]]) -> 'Triangle':
-        """ Return a new triangle rotated the corresponding radians
-        """
-        rover = list(map(lambda v: vRotate(v, rot), self.vertices))
-        return Triangle(rover, self.clr)
-
-    def __lt__(self, other: 'Triangle'):
-        """ Less than operation
-        Precondition: Triangle cm has already been generated
-        """
-        # We want triangles sorted by decreasing z value,
-        # thus we compare -cm.cds[2] => > rather than <
-        return self.cm[2] > other.cm[2]
-
-    def __repr__(self):
-        return f"[{self.vertices[0]} , {self.vertices[1]}, {self.vertices[2]}]"
+# TODO: implement comparison stuff
+# def __lt__(self, other: 'Triangle'):
+#     """ Less than operation
+#     Precondition: Triangle cm has already been generated
+#     """
+#     # We want triangles sorted by decreasing z value,
+#     # thus we compare -cm.cds[2] => > rather than <
+#     return self.cm[2] > other.cm[2]
 
 
 class Mesh:
@@ -250,13 +242,13 @@ class Mesh:
     # list of Triangles, which are relatively positioned to relative origin (ro)
     # of the Mesh
     # All triangles in self.triangles must have their normals generated
-    triangles: List[Triangle]
+    triangles: List[List[List[float]]]
 
     # cumulative rotation value. 3 numbers, represent rotation about the ro
     # in radians (between -2pi to 2pi)
     rotation: List[float]
 
-    def __init__(self, ro: List[float], triangles: List[Triangle]) -> None:
+    def __init__(self, ro: List[float], triangles: List[List[List[float]]]):
         self.ro = ro
         self.triangles = triangles
         self.rotation = [0] * 3
@@ -271,10 +263,10 @@ class Mesh:
         proj_triangles = self._raster(mat_proj, mat_view)
 
         for t in proj_triangles:
-            t.draw(screen)
+            triangle_draw(t, screen)
 
     def _raster(self, mat_proj: List[List[float]],
-                mat_view: List[List[float]]) -> List[Triangle]:
+                mat_view: List[List[float]]) -> List[List[List[float]]]:
         """ Return a list of Triangle objects; based on all of the triangles in
         the given(self) mesh that has been projected onto the screen so that
         they can be rendered
@@ -294,24 +286,24 @@ class Mesh:
 
         for triangle in self.triangles:
             # rotate and transform the normal of this triangle
-            view_norm = norm_mmult(mat_view, vRotate(triangle.normal, rot))
+            view_norm = norm_mmult(mat_view, vRotate(triangle[0], rot))
 
             # process triangle only if its normal points away from the screen
-            if vDot(view_norm, vAdd(view_ro,
-                                    mmult(mat_view, vRotate(triangle.vertices[0], rot))
-                                    )) < 0:
-                # rotate and transform triangle
-                view_tri = triangle.rotate(rot).view_transform(mat_view)
-
+            if vDot(view_norm, vAdd(view_ro, mmult(mat_view, vRotate(triangle[1], rot)))) < 0:
+                # rotate and view transform triangle
+                view_tri = view_transform(triangle_rotate(triangle, rot), mat_view)
+                # view_tri = triangle.rotate(rot).view_transform(mat_view)
+                # TODO: painter's algorithm
                 # set the triangles normal and center of mass
-                view_tri.normal = view_norm
-                view_tri.gen_cm()
+                # view_tri.normal = view_norm
+                # view_tri.gen_cm()
 
                 # project triangle and add it to the draw queue
                 # See Triangle.__lt__ for relevant operator overloading for the
                 # bisect.insort method
-                insort(t, view_tri.project(view_ro, mat_proj))
-
+                #insort(t, view_tri.project(view_ro, mat_proj))
+                t.append(triangle_project(view_tri, view_ro, mat_proj))
+        t.sort(key=lambda x: x[1][2] + x[2][2]+x[3][2], reverse=True)
         return t
 
     def rotate(self, rot: List[float]) -> None:
@@ -357,7 +349,8 @@ def norm_mmult(matrix: List[List[float]], v: List[float]) -> List[float]:
     return ls
 
 
-def get_viewmat(pos: List[float], forward: List[float], up: List[float], right: List[float]) \
+def get_viewmat(pos: List[float], forward: List[float], up: List[float],
+                right: List[float]) \
         -> List[List[float]]:
     """ Returns the view matrix. The view matrix is a change of basis matrix
     from the standard basis to view basis. It cannot strictly be called a
@@ -396,7 +389,7 @@ def file_to_mesh(pos: List[float], d: str):
         # vertex entries take the form "v float float float"
         line = f.readline().split(" ")
         while line[0] == "v":
-            vertices.append( list((map(float, line[1:]))) )
+            vertices.append(list((map(float, line[1:]))))
             line = f.readline().split(" ")
 
         # blank line
@@ -405,10 +398,9 @@ def file_to_mesh(pos: List[float], d: str):
         # triangle entries take the form "t int int int"
         # where int correspond to an entry in <vertices>
         while line[0] == "f":
-            t = Triangle(list(map(lambda n: vertices[int(n) - 1], line[1:])),
-                         (255, 255, 255))
-            t.gen_normal()
-            vNormalize(t.normal)
+            t = [[]] + list(map(lambda n: vertices[int(n) - 1], line[1:]))
+            gen_normal(t)
+            vNormalize(t[0])
             triangles.append(t)
             line = f.readline().split(" ")
 
