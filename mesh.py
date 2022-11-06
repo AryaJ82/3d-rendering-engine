@@ -133,38 +133,11 @@ def vEq(v: List[float], w: List[float]) -> bool:
                    round(v[2] - w[2], 3) == 0.000)
 
 
-# class Triangle:
-#     # list of vectors corresponding to the vertices of the triangle in 3d space
-#     # defined clockwise relative to the relative origin (normal pointing out)
-#     vertices: List[List[float]]
-#
-#     # triangle normal; over written to the parent's normal if the triangle has
-#     # been projected. Generated as needed.
-#     normal: List[float]
-#
-#     # triangle center of mass; over written to the parent's if the triangle
-#     # has been projected. Generated as needed. Relative to origin of vertices,
-#     # not to absolute (world) origin.
-#     cm: List[float]
-#
-#     # colour of triangle in RGB
-#     clr: tuple
-#
-#     def __init__(self, vertices: List[List[float]], clr: tuple) -> None:
-#         self.vertices = vertices
-#         self.clr = clr
-
 def gen_normal(triangle: List[List[float]]):
     """ Sets the normal for this triangle """
     triangle[0] = vCross(vSub(triangle[2], triangle[1]),
                          vSub(triangle[3], triangle[1]))
 
-
-# def gen_cm(self):
-#     """ Find the center of mass of this triangle"""
-#     self.cm = vScMult(
-#         vAdd(vAdd(self.vertices[0],  self.vertices[1]),self.vertices[2]),
-#         0.333)
 
 def triangle_draw(triangle: List[List[float]], screen) -> None:
     """ Draws this triangle onto the screen
@@ -220,15 +193,6 @@ def triangle_rotate(triangle:List[List[float]], rot: List[List[float]]) -> List[
     """ Return a new triangle rotated the corresponding radians
     """
     return list(map(lambda v: vRotate(v, rot), triangle))
-
-# TODO: implement comparison stuff
-# def __lt__(self, other: 'Triangle'):
-#     """ Less than operation
-#     Precondition: Triangle cm has already been generated
-#     """
-#     # We want triangles sorted by decreasing z value,
-#     # thus we compare -cm.cds[2] => > rather than <
-#     return self.cm[2] > other.cm[2]
 
 
 class Mesh:
