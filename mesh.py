@@ -227,7 +227,7 @@ class Mesh:
         rot = [[cos(self.rotation[0]), sin(self.rotation[0])],
                [cos(self.rotation[1]), sin(self.rotation[1])],
                [cos(self.rotation[2]), sin(self.rotation[2])]]
-        ta = numpy.array(self.triangles, dtype=numpy.float32)
+        ta = numpy.array(self.triangles[:255], dtype=numpy.float32)
         proj_triangles = CUDA_raster(ta, view_ro, rot, mat_view, mat_proj)
 
         # further triangle processing
