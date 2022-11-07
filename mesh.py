@@ -3,6 +3,7 @@ import pygame
 
 from math import sin, cos
 from typing import List
+from cuda_code import *
 from bisect import insort
 import numpy
 
@@ -221,8 +222,15 @@ class Mesh:
         <mat_proj> is the associated projection matrix
         <mat_view> the view transform matrix
         """
-        proj_triangles = self._raster(mat_proj, mat_view)
+        # proj_triangles = self._raster(mat_proj, mat_view)
+        view_ro = mmult(mat_view, self.ro)
+        rot = [[cos(self.rotation[0]), sin(self.rotation[0])],
+               [cos(self.rotation[1]), sin(self.rotation[1])],
+               [cos(self.rotation[2]), sin(self.rotation[2])]]
+        ta = numpy.array(self.triangles, dtype=numpy.float32)
+        proj_triangles = CUDA_raster(ta, view_ro, rot, mat_view, mat_proj)
 
+        # further triangle processing
         for t in proj_triangles:
             triangle_draw(t, screen)
 
